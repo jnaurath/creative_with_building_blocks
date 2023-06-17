@@ -3,7 +3,7 @@
     <div class="viewer-container">
       <canvas class="canvas" ref="canvas"></canvas>
     </div>
-    <div class="buttons-container">
+    <div class="buttons-container">      
       <button @click="layer_down">down</button>
       <h2>Layer {{layer + 1}}</h2>
       <button @click="layer_up">up</button>
@@ -59,11 +59,19 @@ export default {
       const scene = new BABYLON.Scene(engine)
       // scene.debugLayer.show()
 
+      var plane = BABYLON.MeshBuilder.CreatePlane("plane", { height: 20, width: 20, sideOrientation: BABYLON.Mesh.DOUBLESIDE });
+      plane.rotation.x = BABYLON.Tools.ToRadians(90)
+      plane.position = new BABYLON.Vector3(7, 0, -7);
+
       // Create camera
-      const camera = new BABYLON.ArcRotateCamera('camera', -Math.PI / 2, Math.PI / 2.5, 5, BABYLON.Vector3.Zero(), scene)
-      camera.position = new BABYLON.Vector3(30, 30, 30);
-      camera.setTarget(new BABYLON.Vector3(10, 10, 10)); //BABYLON.Vector3.Zero());
-      camera.attachControl(canvas, true)
+      // Parameters: name, alpha, beta, radius, target position, scene
+      const camera = new BABYLON.ArcRotateCamera("Camera", 0, 0, 10, new BABYLON.Vector3(10, 0, -10), scene);
+
+      // Positions the camera overwriting alpha, beta, radius
+      camera.setPosition(new BABYLON.Vector3(25, 20, -25));
+
+      // This attaches the camera to the canvas
+      camera.attachControl(canvas, true, true);
 
       // Create light
       const light = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 1, 0), scene)
@@ -83,14 +91,10 @@ export default {
     addCube(x, y, z) {
       var box_id = 'box_' + x + '_' + y + '_' + z;
       this.matrix[z][y][x]["box"] = BABYLON.MeshBuilder.CreateBox(box_id, { size: 1 }, this.scene);
-      this.matrix[z][y][x]["box"].position = new BABYLON.Vector3(-x, y, z);
+      this.matrix[z][y][x]["box"].position = new BABYLON.Vector3(x, y + .5, -z);
     },
     deleteCube(x, y, z) {
       this.matrix[z][y][x]["box"].dispose()
-      // const box = this.scene.getMeshByName('box')
-      // if (box) {
-      //   box.dispose()
-      // }
     },
     createMatrix() {
       for (let i = 0; i < this.matrixSize; i++) {
