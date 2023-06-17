@@ -7,6 +7,7 @@
       <button @click="layer_down">down</button>
       <h2>Layer {{layer + 1}}</h2>
       <button @click="layer_up">up</button>
+      <button @click="clearLayer">delete</button>
       <div>
         <div v-for="(row, rowIndex) in matrix[layer]" :key="rowIndex" class="matrix-row">
           <div
@@ -50,6 +51,13 @@ export default {
     layer_up() {
       if (this.layer < this.matrixSize-1) {
         this.layer++
+      }
+    },
+    clearLayer() {
+      for (let i = 0; i < this.matrix[this.layer].length; i++) {
+        for (let j = 0; j < this.matrix[this.layer][i].length; j++) {
+          this.disableCell(i, j);
+        }
       }
     },
     initializeScene() {
