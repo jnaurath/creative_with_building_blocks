@@ -7,18 +7,20 @@
       <button @click="layer_down">down</button>
       <h2>Layer {{layer + 1}}</h2>
       <button @click="layer_up">up</button>
-      <div class="matrix">
-        <div v-for="(row, rowIndex) in matrix[layer]" :key="rowIndex" class="row">
+      <div>
+        <div v-for="(row, rowIndex) in matrix[layer]" :key="rowIndex" class="matrix-row">
           <div
             v-for="(cell, colIndex) in row"
             :key="colIndex"
-            class="cell"
-            :class="{ active: cell.active }"
-            @click="toggleCellActive(rowIndex, colIndex)"
+            :class="['matrix-cell', { selected: cell.active }]"
+            @click="selectCell(rowIndex, colIndex)"
+            @mousemove="handleMouseMove(rowIndex, colIndex)"
+            @mousedown="isMouseDown = true"
+            @mouseup="isMouseDown = false"
           >
-          </div>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </template>
@@ -31,7 +33,8 @@ export default {
     return {
       matrix: [],
       matrixSize: 15,
-      layer: 0
+      layer: 0,
+      isMouseDown: false
     };
   },
   mounted() {
@@ -89,12 +92,17 @@ export default {
       this.scene = scene
     },
     addCube(x, y, z) {
-      var box_id = 'box_' + x + '_' + y + '_' + z;
-      this.matrix[z][y][x]["box"] = BABYLON.MeshBuilder.CreateBox(box_id, { size: 1 }, this.scene);
-      this.matrix[z][y][x]["box"].position = new BABYLON.Vector3(x, y + .5, -z);
+      if (!this.matrix[z][y][x]["box"]) {
+        var box_id = 'box_' + x + '_' + y + '_' + z;
+        this.matrix[z][y][x]["box"] = BABYLON.MeshBuilder.CreateBox(box_id, { size: 1 }, this.scene);
+        this.matrix[z][y][x]["box"].position = new BABYLON.Vector3(x, y + .5, -z);
+      }
     },
     deleteCube(x, y, z) {
-      this.matrix[z][y][x]["box"].dispose()
+      if (this.matrix[z][y][x]["box"]) {
+        this.matrix[z][y][x]["box"].dispose()
+        this.matrix[z][y][x]["box"] = null
+      }
     },
     createMatrix() {
       for (let i = 0; i < this.matrixSize; i++) {
@@ -115,21 +123,50 @@ export default {
         this.matrix.push(zAxis);
       }
     },
-    toggleCellActive(rowIndex, colIndex) {
-      // debugger;
+    enableCell(rowIndex, colIndex) {
+      this.addCube(colIndex, this.layer, rowIndex);
+      this.matrix[this.layer][rowIndex][colIndex].active = true;
+    },
+    disableCell(rowIndex, colIndex) {
+      this.deleteCube(colIndex, this.layer, rowIndex);
+      this.matrix[this.layer][rowIndex][colIndex].active = false;
+    },
+
+    selectCell(rowIndex, colIndex) {
       if (this.matrix[this.layer][rowIndex][colIndex].active) {
-        this.deleteCube(colIndex, this.layer, rowIndex);
+        this.disableCell(rowIndex, colIndex);
       } else {
-        this.addCube(colIndex, this.layer, rowIndex);
+        this.enableCell(rowIndex, colIndex);
       }
-      this.matrix[this.layer][rowIndex][colIndex].active = !this.matrix[this.layer][rowIndex][colIndex].active;
-      
+    },
+
+    handleMouseMove(rowIndex, colIndex) {
+      if (this.isMouseDown) {
+        // Set the selected state of the cell while dragging
+        this.enableCell(rowIndex, colIndex);
+      }
     },
   }
 }
 </script>
 
 <style>
+
+.matrix-row {
+  display: flex;
+}
+
+.matrix-cell {
+  width: 20px;
+  height: 20px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}
+
+.selected {
+  background-color: #ccc;
+}
+
 .content-container {
   display: flex;
 }
@@ -149,7 +186,7 @@ export default {
 .canvas {
   height: 100%;
 }
-.matrix {
+/*.matrix-row {
   display: flex;
   flex-wrap: wrap;
 }
@@ -158,15 +195,15 @@ export default {
   display: flex;
 }
 
-.cell {
+.matrix-cell {
   width: 20px;
   height: 20px;
   border: 1px solid #000;
   background-color: #fff;
 }
 
-.cell.active {
+.matrix-cell.active {
   background-color: #000;
 }
-
+*/
 </style>
