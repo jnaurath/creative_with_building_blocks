@@ -8,12 +8,15 @@
       <h2>Layer {{layer + 1}}</h2>
       <button @click="layer_up">up</button>
       <button @click="clearLayer">delete</button>
+      <button @click="changeColor('#E93E27')">red</button>
+      <button @click="changeColor('#2737E9')">blue</button>
       <div>
         <div v-for="(row, rowIndex) in matrix[layer]" :key="rowIndex" class="matrix-row">
           <div
             v-for="(cell, colIndex) in row"
             :key="colIndex"
-            :class="['matrix-cell', { selected: cell.active }]"
+            :style="{ backgroundColor: cell.color }"
+            class="matrix-cell"
             @click="selectCell(rowIndex, colIndex)"
             @mousemove="handleMouseMove(rowIndex, colIndex)"
             @mousedown="isMouseDown = true"
@@ -35,7 +38,11 @@ export default {
       matrix: [],
       matrixSize: 15,
       layer: 0,
-      isMouseDown: false
+      isMouseDown: false,
+      emptyColor: "#FFFFFF",
+      defaultColor: "#EEEEEE",
+      activeColor: "#EEEEEE",
+      materials: {}
     };
   },
   mounted() {
@@ -43,23 +50,30 @@ export default {
     this.createMatrix();
   },
   methods: {
+    changeColor(hexCode) {
+      this.activeColor = hexCode;
+    },
+
     layer_down() {
       if (this.layer) {
         this.layer--
       }
     },
+
     layer_up() {
       if (this.layer < this.matrixSize-1) {
         this.layer++
       }
     },
+
     clearLayer() {
       for (let i = 0; i < this.matrix[this.layer].length; i++) {
         for (let j = 0; j < this.matrix[this.layer][i].length; j++) {
-          this.disableCell(i, j);
+          this.disableCell(i, j, true);
         }
       }
     },
+
     initializeScene() {
       const canvas = this.$refs.canvas
 
@@ -69,6 +83,12 @@ export default {
       // Create scene
       const scene = new BABYLON.Scene(engine)
       // scene.debugLayer.show()
+
+      var material = new BABYLON.StandardMaterial("defaultMaterial", scene);
+      material.alpha = 1;
+      var color = this.hexToRgb(this.activeColor)
+      material.diffuseColor = new BABYLON.Color3(color.r, color.g, color.b);
+      this.materials[this.activeColor] = material;
 
       var plane = BABYLON.MeshBuilder.CreatePlane("plane", { height: 20, width: 20, sideOrientation: BABYLON.Mesh.DOUBLESIDE });
       plane.rotation.x = BABYLON.Tools.ToRadians(90)
@@ -99,19 +119,43 @@ export default {
 
       this.scene = scene
     },
-    addCube(x, y, z) {
-      if (!this.matrix[z][y][x]["box"]) {
-        var box_id = 'box_' + x + '_' + y + '_' + z;
-        this.matrix[z][y][x]["box"] = BABYLON.MeshBuilder.CreateBox(box_id, { size: 1 }, this.scene);
-        this.matrix[z][y][x]["box"].position = new BABYLON.Vector3(x, y + .5, -z);
-      }
+
+    hexToRgb(hex) {
+      hex = hex.replace("#", "");
+      console.log("hex", hex);
+      console.log("hex.substring(0, 2)", hex.substring(0, 2));
+      console.log("hex.substring(2, 4)", hex.substring(2, 4));
+      console.log("hex.substring(4, 6)", hex.substring(4, 6));
+      const r = parseInt(hex.substring(0, 2), 16) /255;
+      const g = parseInt(hex.substring(2, 4), 16) / 255;
+      const b = parseInt(hex.substring(4, 6), 16) / 255;
+      return { r, g, b };
     },
-    deleteCube(x, y, z) {
-      if (this.matrix[z][y][x]["box"]) {
-        this.matrix[z][y][x]["box"].dispose()
-        this.matrix[z][y][x]["box"] = null
+
+    addCube(layer, rowIndex, colIndex) {
+      var box_id = 'box_' + colIndex + '_' + rowIndex + '_' + layer;
+      this.matrix[layer][rowIndex][colIndex]["box"] = BABYLON.MeshBuilder.CreateBox(box_id, { size: 1 }, this.scene);
+      this.matrix[layer][rowIndex][colIndex]["box"].position = new BABYLON.Vector3(colIndex, layer + .5, -rowIndex);
+
+      if (!this.materials[this.activeColor]) {
+        this.createNewMaterial();
       }
+      this.matrix[layer][rowIndex][colIndex]["box"].material = this.materials[this.activeColor];
     },
+
+    createNewMaterial() {
+      var material = new BABYLON.StandardMaterial(this.activeColor);
+      material.alpha = 1;
+      var color = this.hexToRgb(this.activeColor)
+      material.diffuseColor = new BABYLON.Color3(color.r, color.g, color.b);
+      this.materials[this.activeColor] = material;
+    },
+
+    deleteCube(layer, rowIndex, colIndex) {
+      this.matrix[layer][rowIndex][colIndex]["box"].dispose()
+      this.matrix[layer][rowIndex][colIndex]["box"] = null
+    },
+
     createMatrix() {
       for (let i = 0; i < this.matrixSize; i++) {
         const zAxis = [];
@@ -122,27 +166,54 @@ export default {
           for (let k = 0; k < this.matrixSize; k++) {
             yAxis.push({
                 active: false,
-                box: null
+                box: null,
+                color: this.emptyColor
               });
           }
           zAxis.push(yAxis);
         }
-
         this.matrix.push(zAxis);
       }
     },
+
     enableCell(rowIndex, colIndex) {
-      this.addCube(colIndex, this.layer, rowIndex);
+      if (!this.matrix[this.layer][rowIndex][colIndex]["box"]) {
+        this.addCube(this.layer, rowIndex, colIndex);
+      }
       this.matrix[this.layer][rowIndex][colIndex].active = true;
+      this.matrix[this.layer][rowIndex][colIndex].color = this.activeColor;
     },
-    disableCell(rowIndex, colIndex) {
-      this.deleteCube(colIndex, this.layer, rowIndex);
-      this.matrix[this.layer][rowIndex][colIndex].active = false;
+
+    disableCell(rowIndex, colIndex, force) {
+      console.log(rowIndex, colIndex, force);
+      if (rowIndex > 0) {
+        debugger;
+      }
+      if (this.matrix[this.layer][rowIndex][colIndex]["box"]) {
+        if (this.matrix[this.layer][rowIndex][colIndex].color != this.activeColor && !force) {
+          this.changeCubeColor(rowIndex,colIndex);
+        } else {
+          this.deleteCube(this.layer, rowIndex, colIndex);
+          this.matrix[this.layer][rowIndex][colIndex].active = false;
+          this.matrix[this.layer][rowIndex][colIndex].color = this.emptyColor
+        }
+      }
+    },
+
+    changeCubeColor(rowIndex, colIndex) {
+      this.matrix[this.layer][rowIndex][colIndex].color = this.activeColor;
+      this.deleteCube(this.layer, rowIndex, colIndex);
+      this.addCube(this.layer, rowIndex, colIndex);
+
     },
 
     selectCell(rowIndex, colIndex) {
       if (this.matrix[this.layer][rowIndex][colIndex].active) {
-        this.disableCell(rowIndex, colIndex);
+        if (this.matrix[this.layer][rowIndex][colIndex].color != this.activeColor) {
+          this.changeCubeColor(rowIndex, colIndex);
+        } else {
+          this.disableCell(rowIndex, colIndex, false);
+        }
       } else {
         this.enableCell(rowIndex, colIndex);
       }
@@ -194,24 +265,4 @@ export default {
 .canvas {
   height: 100%;
 }
-/*.matrix-row {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-.row {
-  display: flex;
-}
-
-.matrix-cell {
-  width: 20px;
-  height: 20px;
-  border: 1px solid #000;
-  background-color: #fff;
-}
-
-.matrix-cell.active {
-  background-color: #000;
-}
-*/
 </style>
