@@ -1,26 +1,72 @@
 <template>
-    <div class="content-container">
-        <div class="viewer-container">
-            <canvas class="canvas" ref="canvas"></canvas>
-        </div>
-        <div class="buttons-container">
-            <button @click="layer_down">down</button>
-            <h2>Layer {{ layer + 1 }}</h2>
-            <button @click="layer_up">up</button>
-            <button @click="clearLayer">delete</button>
-            <button @click="changeColor('#E93E27')">red</button>
-            <button @click="changeColor('#2737E9')">blue</button>
-            <div>
-                <div v-for="(row, rowIndex) in matrix[layer]" :key="rowIndex" class="matrix-row">
-                    <div v-for="(cell, colIndex) in row" :key="colIndex" :style="{ backgroundColor: cell.color }"
-                        class="matrix-cell" @click="selectCell(rowIndex, colIndex)"
-                        @mousemove="handleMouseMove(rowIndex, colIndex)" @mousedown="isMouseDown = true"
-                        @mouseup="isMouseDown = false">
+    <v-container class="bg-surface-variant">
+        <v-row no-gutters>
+          <v-col
+            cols="12"
+            sm="8"
+          >
+            <v-sheet class="ma-2">
+              <canvas class="canvas" ref="canvas"></canvas>
+            </v-sheet>
+          </v-col>
+          <v-col
+            cols="12"
+            sm="4"
+            >
+            <v-sheet class="ma-2 pa-2">
+                <v-row no-gutters>
+                    <v-col
+                        sm="2"
+                    >
+                        <v-sheet class="ma-2">
+                            <button @click="layer_down">down</button>
+                        </v-sheet>
+                    </v-col>
+                    <v-col
+                        sm="6"
+                    >
+                        <v-sheet class="ma-2">
+                            <h2>Layer {{ layer + 1 }}</h2>
+                        </v-sheet>
+                    </v-col>
+                    <v-col
+                        sm="2"
+                    >
+                        <v-sheet class="ma-2">
+                           <button @click="layer_up">up</button>
+                        </v-sheet>
+                    </v-col>
+
+                    <v-col
+                        sm="2"
+                    >
+                        <v-sheet class="ma-2">
+                            <button @click="clearLayer">delete</button>
+                        </v-sheet>
+                    </v-col>
+                </v-row>
+                
+                
+                
+                <v-color-picker
+                    class="ma-2"
+                    v-model="activeColor"
+                ></v-color-picker>
+                <!-- <button @click="changeColor('#E93E27')">red</button>
+                <button @click="changeColor('#2737E9')">blue</button> -->
+                <div>
+                    <div v-for="(row, rowIndex) in matrix[layer]" :key="rowIndex" class="matrix-row">
+                        <div v-for="(cell, colIndex) in row" :key="colIndex" :style="{ backgroundColor: cell.color }"
+                            class="matrix-cell" @click="selectCell(rowIndex, colIndex)"
+                            @mousemove="handleMouseMove(rowIndex, colIndex)" @mousedown="isMouseDown = true"
+                            @mouseup="isMouseDown = false">
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
+            </v-sheet>
+          </v-col>
+        </v-row>
+    </v-container>
 </template>
 
 <script>
@@ -182,9 +228,6 @@ export default {
         },
 
         disableCell(rowIndex, colIndex, force) {
-            if (rowIndex > 0) {
-                debugger;
-            }
             if (this.matrix[this.layer][rowIndex][colIndex]["box"]) {
                 if (this.matrix[this.layer][rowIndex][colIndex].color != this.activeColor && !force) {
                     this.changeCubeColor(rowIndex, colIndex);
@@ -259,6 +302,6 @@ export default {
 }
 
 .canvas {
-    height: 100%;
+    width: 100%;
 }
 </style>
