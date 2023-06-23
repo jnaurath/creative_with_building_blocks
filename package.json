@@ -14,8 +14,10 @@
     "nuxt": "^3.5.2"
   },
   "dependencies": {
-    "babylonjs": "^6.8.0",
     "@mdi/font": "^7.2.96",
+    "babylonjs": "^6.8.0",
+    "firebase": "^9.22.2",
+    "firebase-admin": "^11.9.0",
     "sass": "^1.63.4",
     "vuetify": "^3.3.3"
   }
