@@ -6,7 +6,9 @@
             sm="8"
           >
             <v-sheet class="ma-2">
-              <canvas class="canvas" ref="canvas"></canvas>
+              <BabylonViewer :matrix="matrix" :activeColor="activeColor" ref="babylonViewer"/>
+              <v-text-field v-model="artistName" label="Label" variant="outlined" placeholder="anonymous artist" persistent-clear @click:clear="onClear" clearable></v-text-field>
+              <button @click="submit">submit</button>
             </v-sheet>
           </v-col>
           <v-col
@@ -70,9 +72,14 @@
 </template>
 
 <script>
-import * as BABYLON from 'babylonjs'
+import { addDoc, collection } from 'firebase/firestore';
+import BabylonViewerComponent from '~/components/BabylonViewer.vue'
+
 
 export default {
+    components: {
+        BabylonViewerComponent
+    },
     data() {
         return {
             matrix: [],
@@ -82,16 +89,47 @@ export default {
             emptyColor: "#FFFFFF",
             defaultColor: "#EEEEEE",
             activeColor: "#EEEEEE",
-            materials: {}
+            materials: {},
+            artistName: "anonymous artist"
         };
     },
     mounted() {
-        this.initializeScene();
         this.createMatrix();
     },
     methods: {
         changeColor(hexCode) {
             this.activeColor = hexCode;
+        },
+
+        async submit() {
+            console.log('submit')
+            console.log(this.matrix)
+            
+            const { firestore } = useFirebase();
+
+            // Add a new document with a generated id.
+            const docRef = await addDoc(collection(firestore, "submissions"), {
+                creator: this.artistName,
+                data: this.getActiveFields(),
+                createdOn: new Date()
+            });
+        },
+
+        getActiveFields() {
+            let activeFieldsValue = []
+            for (let layer = 0; layer < this.matrixSize; layer++) {
+                for (let i = 0; i < this.matrix[layer].length; i++) {
+                    for (let j = 0; j < this.matrix[layer][i].length; j++) {
+                        if (this.matrix[layer][i][j].active) {
+                            console.log('active')
+                            console.log(layer, i, j, this.matrix[layer][i][j].color)
+                            activeFieldsValue.push({'layer':layer, 'row': i, 'col': j, 'color': this.matrix[layer][i][j].color})
+                        }
+                    }
+                }
+            }
+            console.log(activeFieldsValue)
+            return activeFieldsValue;
         },
 
         layer_down() {
@@ -112,88 +150,6 @@ export default {
                     this.disableCell(i, j, true);
                 }
             }
-        },
-
-        initializeScene() {
-            const canvas = this.$refs.canvas
-
-            // Initialize Babylon.js engine
-            const engine = new BABYLON.Engine(canvas, true)
-
-            // Create scene
-            const scene = new BABYLON.Scene(engine)
-            // scene.debugLayer.show()
-
-            var material = new BABYLON.StandardMaterial("defaultMaterial", scene);
-            material.alpha = 1;
-            var color = this.hexToRgb(this.activeColor)
-            material.diffuseColor = new BABYLON.Color3(color.r, color.g, color.b);
-            this.materials[this.activeColor] = material;
-
-            var plane = BABYLON.MeshBuilder.CreatePlane("plane", { height: 20, width: 20, sideOrientation: BABYLON.Mesh.DOUBLESIDE });
-            plane.rotation.x = BABYLON.Tools.ToRadians(90)
-            plane.position = new BABYLON.Vector3(7, 0, -7);
-
-            // Create camera
-            // Parameters: name, alpha, beta, radius, target position, scene
-            const camera = new BABYLON.ArcRotateCamera("Camera", 0, 0, 10, new BABYLON.Vector3(10, 0, -10), scene);
-
-            // Positions the camera overwriting alpha, beta, radius
-            camera.setPosition(new BABYLON.Vector3(25, 20, -25));
-
-            // This attaches the camera to the canvas
-            camera.attachControl(canvas, true, true);
-
-            // Create light
-            const light = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 1, 0), scene)
-
-            // Render loop
-            engine.runRenderLoop(() => {
-                scene.render()
-            })
-
-            // Handle window resize
-            window.addEventListener('resize', () => {
-                engine.resize()
-            })
-
-            this.scene = scene
-        },
-
-        hexToRgb(hex) {
-            hex = hex.replace("#", "");
-            console.log("hex", hex);
-            console.log("hex.substring(0, 2)", hex.substring(0, 2));
-            console.log("hex.substring(2, 4)", hex.substring(2, 4));
-            console.log("hex.substring(4, 6)", hex.substring(4, 6));
-            const r = parseInt(hex.substring(0, 2), 16) / 255;
-            const g = parseInt(hex.substring(2, 4), 16) / 255;
-            const b = parseInt(hex.substring(4, 6), 16) / 255;
-            return { r, g, b };
-        },
-
-        addCube(layer, rowIndex, colIndex) {
-            var box_id = 'box_' + colIndex + '_' + rowIndex + '_' + layer;
-            this.matrix[layer][rowIndex][colIndex]["box"] = BABYLON.MeshBuilder.CreateBox(box_id, { size: 1 }, this.scene);
-            this.matrix[layer][rowIndex][colIndex]["box"].position = new BABYLON.Vector3(colIndex, layer + .5, -rowIndex);
-
-            if (!this.materials[this.activeColor]) {
-                this.createNewMaterial();
-            }
-            this.matrix[layer][rowIndex][colIndex]["box"].material = this.materials[this.activeColor];
-        },
-
-        createNewMaterial() {
-            var material = new BABYLON.StandardMaterial(this.activeColor);
-            material.alpha = 1;
-            var color = this.hexToRgb(this.activeColor)
-            material.diffuseColor = new BABYLON.Color3(color.r, color.g, color.b);
-            this.materials[this.activeColor] = material;
-        },
-
-        deleteCube(layer, rowIndex, colIndex) {
-            this.matrix[layer][rowIndex][colIndex]["box"].dispose()
-            this.matrix[layer][rowIndex][colIndex]["box"] = null
         },
 
         createMatrix() {
@@ -218,7 +174,7 @@ export default {
 
         enableCell(rowIndex, colIndex) {
             if (!this.matrix[this.layer][rowIndex][colIndex]["box"]) {
-                this.addCube(this.layer, rowIndex, colIndex);
+                this.$refs.babylonViewer.addCube(this.layer, rowIndex, colIndex, this.activeColor);
             }
             if (this.matrix[this.layer][rowIndex][colIndex].color != this.activeColor) {
                 this.changeCubeColor(rowIndex, colIndex);
@@ -232,7 +188,7 @@ export default {
                 if (this.matrix[this.layer][rowIndex][colIndex].color != this.activeColor && !force) {
                     this.changeCubeColor(rowIndex, colIndex);
                 } else {
-                    this.deleteCube(this.layer, rowIndex, colIndex);
+                    this.$refs.babylonViewer.deleteCube(this.layer, rowIndex, colIndex);
                     this.matrix[this.layer][rowIndex][colIndex].active = false;
                     this.matrix[this.layer][rowIndex][colIndex].color = this.emptyColor
                 }
@@ -241,8 +197,8 @@ export default {
 
         changeCubeColor(rowIndex, colIndex) {
             this.matrix[this.layer][rowIndex][colIndex].color = this.activeColor;
-            this.deleteCube(this.layer, rowIndex, colIndex);
-            this.addCube(this.layer, rowIndex, colIndex);
+            this.$refs.babylonViewer.deleteCube(this.layer, rowIndex, colIndex);
+            this.$refs.babylonViewer.addCube(this.layer, rowIndex, colIndex, this.activeColor);
 
         },
 
@@ -301,7 +257,4 @@ export default {
     justify-content: center;
 }
 
-.canvas {
-    width: 100%;
-}
 </style>
